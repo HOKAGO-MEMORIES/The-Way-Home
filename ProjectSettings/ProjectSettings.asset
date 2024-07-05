@@ -857,7 +857,13 @@ PlayerSettings:
   XboxOneOverrideIdentityName: 
   XboxOneOverrideIdentityPublisher: 
   vrEditorSettings: {}
-  cloudServicesEnabled: {}
+  cloudServicesEnabled:
+    Build: 0
+    Game Performance: 0
+    Legacy Analytics: 0
+    Purchasing: 0
+    UDP: 0
+    Unity Ads: 0
   luminIcon:
     m_Name: 
     m_ModelFolderPath: 
@@ -877,7 +883,7 @@ PlayerSettings:
   apiCompatibilityLevel: 6
   activeInputHandler: 0
   windowsGamepadBackendHint: 0
-  cloudProjectId: f85d7993-c1c0-46c0-b9b3-580162295735
+  cloudProjectId: 4027f4df-fb95-426a-8c80-5c417813716e
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
   projectName: The way home
