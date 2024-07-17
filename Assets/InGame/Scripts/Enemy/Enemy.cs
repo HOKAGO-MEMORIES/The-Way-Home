@@ -5,6 +5,7 @@ using UnityEngine;
 using static Player;
 using UnityEngine.TextCore.Text;
 using UnityEngine.UIElements;
+using UnityEngine.Windows;
 
 public class Enemy : MonoBehaviour, IPunObservable
 {
@@ -19,6 +20,17 @@ public class Enemy : MonoBehaviour, IPunObservable
 
     [Header("----------Move")]
     public int inputX;
+
+    [Header("----------Slope")]
+    private Transform groundPos; // Must position child's 0
+    private Transform frontPos; // Must position child's 1
+    private float slopeDistance;
+    private RaycastHit2D slopeHit;
+    private RaycastHit2D frontHit;
+    private float maxAngle;
+    private float angle;
+    private Vector2 perp;
+    public bool isSlope;
 
     [Header("----------Attack")]
     [Tooltip("If true, the attack is done with a collider. If not, it is done with a trigger.")]
@@ -39,8 +51,19 @@ public class Enemy : MonoBehaviour, IPunObservable
         rigid = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
 
+        // Slope
+        groundPos = transform.GetChild(0);
+        frontPos = transform.GetChild(1);
+
         // Photon
         PV = GetComponent<PhotonView>();
+    }
+
+    void OnEnable()
+    {
+        // Slope
+        slopeDistance = 1;
+        maxAngle = 60;
     }
 
     void OnCollisionEnter2D(Collision2D collision)
@@ -94,11 +117,13 @@ public class Enemy : MonoBehaviour, IPunObservable
         #endregion
 
         #region Flip
-        ControlFlip(inputX);
+        if (PhotonNetwork.InRoom)
+            PV.RPC("ControlFlip", RpcTarget.AllBuffered, inputX, isSlope);
         #endregion
 
         #region Move
-        transform.Translate(Mathf.Abs(inputX) * Vector2.right * stat.moveSpeed * Time.deltaTime);
+        if (PV.IsMine)
+            transform.Translate(Mathf.Abs(inputX) * Vector2.right * stat.moveSpeed * Time.deltaTime);
         #endregion
 
         #region Attack
@@ -106,8 +131,10 @@ public class Enemy : MonoBehaviour, IPunObservable
         #endregion
 
         #region Animator Parameter
-        animator.SetFloat("xMove", Mathf.Abs(inputX));
-        animator.SetFloat("yMove", rigid.velocity.y);
+        if (animator != null && PV.IsMine) {
+            animator.SetFloat("xMove", Mathf.Abs(inputX));
+            animator.SetFloat("yMove", rigid.velocity.y);
+        }
         #endregion
     }
 
@@ -116,18 +143,25 @@ public class Enemy : MonoBehaviour, IPunObservable
     {
         inputX = Random.Range(-1, 2);
 
-        yield return new WaitForSeconds(7f);
+        yield return new WaitForSeconds(Random.Range(3f, 10f));
 
         StartCoroutine(StartXRoutine());
     }
 
-    private void ControlFlip(int _inputX)
+    [PunRPC]
+    private void ControlFlip(int _inputX, bool _isSlope)
     {
         // FlipX
         if (_inputX > 0)
             transform.eulerAngles = Vector3.zero;
         else if (_inputX < 0)
             transform.eulerAngles = new Vector3(0, 180, 0);
+
+        // FlipZ (on the slope)
+        if (_inputX == 0 && _isSlope)
+            rigid.constraints = RigidbodyConstraints2D.FreezePositionX | RigidbodyConstraints2D.FreezeRotation;
+        else
+            rigid.constraints = RigidbodyConstraints2D.FreezeRotation;
     }
 
     public void Hitted(Player player)
@@ -170,11 +204,9 @@ public class Enemy : MonoBehaviour, IPunObservable
     public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
     {
         if (stream.IsWriting) {
-            stream.SendNext(inputX);
             stream.SendNext(isHurt);
         }
         else {
-            inputX = (int)stream.ReceiveNext();
             isHurt = (bool)stream.ReceiveNext();
         }
     }
