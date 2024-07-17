@@ -20,10 +20,12 @@ public class Enemy : MonoBehaviour, IPunObservable
 
     [Header("----------Move")]
     public int inputX;
+    bool isGround;
 
     [Header("----------Slope")]
     private Transform groundPos; // Must position child's 0
     private Transform frontPos; // Must position child's 1
+    private float groundRadius;
     private float slopeDistance;
     private RaycastHit2D slopeHit;
     private RaycastHit2D frontHit;
@@ -62,6 +64,7 @@ public class Enemy : MonoBehaviour, IPunObservable
     void OnEnable()
     {
         // Slope
+        groundRadius = 0.1f;
         slopeDistance = 1;
         maxAngle = 60;
     }
@@ -121,9 +124,35 @@ public class Enemy : MonoBehaviour, IPunObservable
             PV.RPC("ControlFlip", RpcTarget.AllBuffered, inputX, isSlope);
         #endregion
 
+        #region Check - Ground
+        GroundChk();
+        #endregion
+
+        #region Check - Slope
+        slopeHit = Physics2D.Raycast(groundPos.position, Vector2.down, slopeDistance,
+            LayerMask.GetMask("Ground", "Front Object"));
+        frontHit = Physics2D.Raycast(frontPos.position, transform.right, 0.1f,
+            LayerMask.GetMask("Ground", "Front Object"));
+
+        if ((slopeHit || frontHit)) {
+            if (frontHit)
+                SlopeChk(frontHit);
+            else if (slopeHit)
+                SlopeChk(slopeHit);
+
+            // Check angle and perp
+            /*
+             Debug.DrawLine(slopeHit.point, slopeHit.point + slopeHit.normal, Color.red);
+             Debug.DrawLine(slopeHit.point, slopeHit.point + perp, Color.red);
+             Debug.DrawLine(frontHit.point, frontHit.point + frontHit.normal, Color.green);
+             Debug.DrawLine(frontHit.point, frontHit.point + perp, Color.green);
+            */
+        }
+        #endregion
+
         #region Move
         if (PV.IsMine)
-            transform.Translate(Mathf.Abs(inputX) * Vector2.right * stat.moveSpeed * Time.deltaTime);
+            Move();
         #endregion
 
         #region Attack
@@ -162,6 +191,46 @@ public class Enemy : MonoBehaviour, IPunObservable
             rigid.constraints = RigidbodyConstraints2D.FreezePositionX | RigidbodyConstraints2D.FreezeRotation;
         else
             rigid.constraints = RigidbodyConstraints2D.FreezeRotation;
+    }
+
+    private void GroundChk()
+    {
+        isGround = Physics2D.OverlapCircle(groundPos.position, groundRadius,
+            LayerMask.GetMask("Ground", "Front Object"));
+    }
+    private void SlopeChk(RaycastHit2D hit)
+    {
+        angle = Vector2.Angle(hit.normal, Vector2.up);
+        perp = Vector2.Perpendicular(hit.normal).normalized;
+
+        if (angle != 0) isSlope = true;
+        else isSlope = false;
+    }
+
+    private void DeathChk()
+    {
+        if (stat.health <= 0) {
+            isDeath = true;
+            animator.SetBool("isDeath", true);
+        }
+    }
+
+    private void Move()
+    {
+        // Translate Move
+        if (inputX != 0) {
+            if (isSlope && isGround && angle < maxAngle) {
+                rigid.velocity = Vector2.zero;
+                if (inputX > 0)
+                    transform.Translate(new Vector2(Mathf.Abs(inputX) * -perp.x * stat.moveSpeed * Time.deltaTime,
+                        Mathf.Abs(inputX) * -perp.y * stat.moveSpeed * Time.deltaTime));
+                else if (inputX < 0)
+                    transform.Translate(new Vector2(Mathf.Abs(inputX) * -perp.x * stat.moveSpeed * Time.deltaTime,
+                        Mathf.Abs(inputX) * perp.y * stat.moveSpeed * Time.deltaTime));
+            }
+            else
+                transform.Translate(Mathf.Abs(inputX) * Vector2.right * stat.moveSpeed * Time.deltaTime);
+        }
     }
 
     public void Hitted(Player player)
