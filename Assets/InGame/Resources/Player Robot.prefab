@@ -294,10 +294,22 @@ MonoBehaviour:
   - Type: 9
     SynchronizeType: 1
     Name: gAttackTrigger
+  - Type: 4
+    SynchronizeType: 1
+    Name: isDucking
+  - Type: 9
+    SynchronizeType: 1
+    Name: duckingTrigger
+  - Type: 9
+    SynchronizeType: 1
+    Name: choppingTrigger
+  - Type: 4
+    SynchronizeType: 1
+    Name: isChopping
   m_SynchronizeLayers:
   - SynchronizeType: 0
     LayerIndex: 0
---- !u!114 &4397794774391764817
+ isDucking
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
