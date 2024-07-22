@@ -173,8 +173,6 @@ public class LobbyManager : MonoBehaviourPunCallbacks, IInRoomCallbacks
         ChatperNext.interactable = isHost;
         ChatperPrevious.interactable = isHost;
 
-        GameBtn.onClick.RemoveAllListeners();
-
         if (isHost)
         {
             GameBtn.interactable = false;
@@ -288,36 +286,45 @@ public class LobbyManager : MonoBehaviourPunCallbacks, IInRoomCallbacks
 
     #region 게임 시작 버튼
     // 게스트가 준비 완료 상태
-    private void OnGuestReady()
+    public void OnGuestReady()
     {
         isGuestReady = !isGuestReady;
-        PV.RPC("UpdateGameBtn", RpcTarget.MasterClient, isGuestReady);
+        PV.RPC("GuestReady", RpcTarget.MasterClient, isGuestReady);
         GameBtn.GetComponentInChildren<TMP_Text>().text = isGuestReady ? "Cancel" : "Ready";
-    }
-    private void OnHostGameStart()
-    {
-        if (isHost)
-        {
-            // "Chapter1" 씬으로 전환
-            Debug.Log("Host is starting the game. Loading Chapter1...");
-            PV.RPC("LoadGameScene", RpcTarget.All, "Chapter 1");
-        }
     }
 
     [PunRPC]
-    private void UpdateGameBtn(bool guestReady)
+    public void GuestReady(bool guestReady)
     {
-        if (isHost)
+        if (PhotonNetwork.IsMasterClient)
         {
+            isGuestReady = guestReady;
             GameBtn.interactable = guestReady;
         }
     }
 
-    // 게스트는 씬 전환 x
+    private void OnHostGameStart()
+    {
+        if (PhotonNetwork.IsMasterClient && isGuestReady)
+        {
+            StartCoroutine(StartGameCoroutine("Chapter 1"));
+        }
+    }
+
+    private IEnumerator StartGameCoroutine(string sceneName)
+    {
+        PV.RPC("LoadGameScene", RpcTarget.Others, sceneName);
+
+        yield return new WaitForSeconds(0.5f);
+
+        PhotonNetwork.LoadLevel(sceneName);
+    }
+
     [PunRPC]
     private void LoadGameScene(string sceneName)
     {
         PhotonNetwork.LoadLevel(sceneName);
     }
+
     #endregion
 }
